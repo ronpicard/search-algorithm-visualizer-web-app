@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Search Algorithm Visualizer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1e1e2e;color:#cdd6f4;font-family:Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:10px;min-height:100vh;font-size:14px}
+h1{font-size:1.3rem;margin-bottom:4px;letter-spacing:.5px}
+.problem-desc{font-size:.78rem;color:#a6adc8;background:#181825;border:1px solid #313244;border-radius:8px;padding:7px 12px;line-height:1.5;margin-bottom:6px;max-width:960px;width:100%}
+.problem-desc strong{color:#cba6f7}
+.main{display:flex;gap:12px;align-items:flex-start;width:100%;max-width:980px}
+canvas{display:block;border:1px solid #45475a;cursor:crosshair;flex-shrink:0}
+.info-panel{flex:1;min-width:200px;max-width:260px;display:flex;flex-direction:column;gap:8px}
+.info-card{background:#181825;border:1px solid #313244;border-radius:8px;padding:9px 11px}
+.info-card h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:#585b70;margin-bottom:5px}
+.algo-name{font-size:.95rem;font-weight:700;margin-bottom:4px}
+#algo-type-badge{display:inline-block;font-size:.65rem;padding:2px 7px;border-radius:20px;background:#313244;color:#cdd6f4;margin-bottom:6px;font-weight:600}
+#algo-how{color:#a6adc8;font-size:.75rem;line-height:1.55}
+#algo-complexity{margin-top:6px;font-size:.7rem;color:#6c7086}
+#algo-complexity span{color:#cba6f7;font-weight:600}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.stat-box{background:#313244;border-radius:6px;padding:5px 7px;text-align:center}
+.stat-box .val{font-size:1rem;font-weight:700;color:#cdd6f4}
+.stat-box .lbl{font-size:.62rem;color:#6c7086;margin-top:1px}
+.leg-col{display:flex;flex-direction:column;gap:4px;font-size:.74rem}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+#status{font-size:.78rem;color:#6c7086;margin:4px 0;min-height:1.1em;text-align:center;max-width:980px;width:100%}
+.btn-section{width:100%;max-width:980px}
+.btn-group-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.8px;color:#585b70;margin:5px 0 3px 2px}
+.btn-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
+button{border:none;border-radius:5px;padding:5px 10px;font-size:.78rem;font-weight:700;cursor:pointer;background:#313244;transition:background .15s;white-space:nowrap}
+button:hover{background:#45475a}
+button:disabled{opacity:.35;cursor:default}
+#btn-reset{background:#45475a;color:#cdd6f4}
+.wa-row{display:flex;align-items:center;gap:8px;font-size:.75rem;color:#bac2de;margin-top:3px}
+.wa-row input{width:100px;accent-color:#a6e3a1;cursor:pointer}
+#tip{font-size:.72rem;color:#585b70;margin-top:3px;text-align:center}
+.dstar-note{font-size:.68rem;color:#f38ba8;margin-top:3px;display:none}
+</style>
+</head>
+<body>
+<h1>🔍 Search Algorithm Visualizer</h1>
+<div class="problem-desc">
+  <strong>The Problem:</strong> Navigate from the <strong style="color:#a6e3a1">green start</strong> to the
+  <strong style="color:#f38ba8">red goal</strong> on a 2-D grid of passable cells and impassable
+  <strong style="color:#6c7086">walls</strong>. Each step costs 1 unit. The 14 algorithms below explore the
+  grid with different strategies — compare how each shapes the visited region, path quality, and speed.
+  <span style="color:#585b70"> Left-click/drag to toggle walls.</span>
+</div>
+
+<div class="main">
+  <canvas id="c"></canvas>
+  <div class="info-panel">
+    <div class="info-card">
+      <h3>Active Algorithm</h3>
+      <div id="algo-name-display" class="algo-name" style="color:#585b70">—</div>
+      <div id="algo-type-badge">none selected</div>
+      <div id="algo-how" style="color:#585b70;font-style:italic;font-size:.74rem">Select an algorithm to see how it works.</div>
+      <div id="algo-complexity"></div>
+    </div>
+    <div class="info-card">
+      <h3>Live Stats</h3>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val" id="stat-steps">—</div><div class="lbl">Steps</div></div>
+        <div class="stat-box"><div class="val" id="stat-path">—</div><div class="lbl">Path Len</div></div>
+        <div class="stat-box"><div class="val" id="stat-visited">—</div><div class="lbl">Visited</div></div>
+        <div class="stat-box"><div class="val" id="stat-result">—</div><div class="lbl">Result</div></div>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>Legend</h3>
+      <div class="leg-col">
+        <div class="leg-item"><div class="leg-swatch" style="background:#a6e3a1"></div>Start</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#f38ba8"></div>Goal</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#45475a"></div>Wall</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#74c7ec"></div>Visited (fwd)</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#89b4fa"></div>Visited (bwd)</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#cba6f7"></div>Frontier</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#f9e2af"></div>Path found</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#89dceb"></div>RRT nodes</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#f38ba8;opacity:.5"></div>D* replan</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="status">Ready</div>
+<div class="btn-section">
+  <div class="btn-group-label">Uninformed</div>
+  <div class="btn-row" id="row-uninformed"></div>
+  <div class="btn-group-label">Informed / Heuristic</div>
+  <div class="btn-row" id="row-informed"></div>
+  <div class="btn-group-label">Memory-Bounded / Iterative</div>
+  <div class="btn-row" id="row-memory"></div>
+  <div class="btn-group-label">Probabilistic / Sampling</div>
+  <div class="btn-row" id="row-prob"></div>
+  <div class="wa-row">
+    <label for="wa-weight">Weighted A* ε:</label>
+    <input type="range" id="wa-weight" min="1" max="5" step="0.1" value="2.5">
+    <span id="wa-val">2.5</span>
+    <span style="color:#585b70;font-size:.68rem">(1 = optimal A*, 5 = very fast/suboptimal)</span>
+  </div>
+  <div class="dstar-note" id="dstar-note">⚡ D* Lite active — draw new walls on the grid and watch it replan!</div>
+  <div class="btn-row" style="margin-top:6px">
+    <button id="btn-reset">⟳ Reset Maze</button>
+  </div>
+</div>
+<div id="tip">Tip: Left-click / drag canvas to toggle walls &nbsp;·&nbsp; Reset generates a new random maze</div>
+
+<div id="algo-desc-panel" style="display:none;max-width:980px;width:100%;margin-top:12px;background:#181825;border:1px solid #313244;border-radius:10px;padding:14px 18px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="desc-name" style="font-size:1.05rem;font-weight:700"></span>
+      <span id="desc-badge" style="font-size:.65rem;padding:2px 9px;border-radius:20px;font-weight:600"></span>
+    </div>
+    <div style="display:flex;gap:16px;font-size:.72rem;color:#6c7086">
+      <span>Time: <strong id="desc-time" style="color:#cba6f7"></strong></span>
+      <span>Space: <strong id="desc-space" style="color:#cba6f7"></strong></span>
+      <span>Optimal: <strong id="desc-optimal"></strong></span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:.78rem;line-height:1.6;color:#a6adc8">
+    <div>
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.7px;color:#585b70;margin-bottom:4px">How It Works</div>
+      <div id="desc-how"></div>
+    </div>
+    <div>
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.7px;color:#585b70;margin-bottom:4px">What To Watch For</div>
+      <div id="desc-watch"></div>
+    </div>
+    <div>
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.7px;color:#585b70;margin-bottom:4px">Strengths &amp; Weaknesses</div>
+      <div id="desc-tradeoffs"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────
+const COLS=40,ROWS=24,CELL=21;
+const W=COLS*CELL,H=ROWS*CELL,WALL_PROB=0.27,DELAY=16;
+const C={bg:'#1e1e2e',empty:'#313244',wall:'#45475a',start:'#a6e3a1',end:'#f38ba8',
+  visited:'#74c7ec',visited2:'#89b4fa',frontier:'#cba6f7',frontier2:'#f5c2e7',
+  path:'#f9e2af',rrtNode:'#89dceb',rrtEdge:'#585b70',replan:'#f3794488'};
+
+// ── Algorithm metadata ────────────────────────────────────────────────────
+const ALGO_INFO={
+  DFS:{color:'#cba6f7',type:'Uninformed · Not Optimal',
+    how:`Uses a <strong>stack (LIFO)</strong>. Dives deep along one corridor before backtracking. Finds <em>a</em> path but rarely the shortest — watch it shoot to one side then snake back.`,
+    complexity:'Time: O(V+E) · Space: O(V)'},
+  BFS:{color:'#74c7ec',type:'Uninformed · Optimal (unit cost)',
+    how:`Uses a <strong>queue (FIFO)</strong>. Expands all nodes at depth <em>d</em> before depth <em>d+1</em> — the frontier grows as a perfect ring. Guarantees shortest path on uniform grids.`,
+    complexity:'Time: O(V+E) · Space: O(V)'},
+  BiDirBFS:{color:'#89b4fa',type:'Uninformed · Optimal (unit cost)',
+    how:`Two BFS wavefronts expand simultaneously — <strong>blue from start</strong>, <strong>purple from goal</strong>. When they collide the path is stitched. Explores roughly half the nodes of single BFS.`,
+    complexity:'Time: O(b^(d/2)) · Space: O(b^(d/2))'},
+  BnB:{color:'#fab387',type:'Informed (cost) · Optimal',
+    how:`Min-heap ordered by cumulative cost <em>g</em>. <strong>Prunes</strong> any branch whose cost already exceeds the best known bound. Foundation for Dijkstra and A* on weighted graphs.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  Dijkstra:{color:'#f9e2af',type:'Informed (cost) · Optimal',
+    how:`Priority queue always pops the node with smallest <strong>tentative distance</strong>. No heuristic — explores uniformly outward. The reference for shortest path on weighted graphs.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  AStar:{color:'#a6e3a1',type:'Informed · Optimal',
+    how:`Combines true cost <strong>g</strong> and heuristic estimate <strong>h</strong> (Manhattan distance) into <em>f = g+h</em>. Steers toward the goal while keeping the path optimal — the gold-standard grid pathfinder.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  BiDirAStar:{color:'#94e2d5',type:'Informed · Optimal',
+    how:`Runs two A* searches simultaneously, each using the <strong>other's start as its heuristic anchor</strong>. Meets in the middle faster than single A* on large grids.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  Greedy:{color:'#f38ba8',type:'Heuristic · Not Optimal',
+    how:`Only uses <strong>h</strong> — the estimated distance to goal. Beelines toward the target, ignoring past cost. Very fast on open maps but easily trapped by dead ends.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  WeightedAStar:{color:'#fab387',type:'Informed · Suboptimal (bounded)',
+    how:`A* with <em>f = g + ε·h</em>. Larger ε biases toward the goal more aggressively — <strong>fewer cells visited, faster finish, but path ≤ ε× optimal</strong>. Use the slider below to tune ε live.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  JPS:{color:'#a6e3a1',type:'Informed · Optimal (uniform grid)',
+    how:`A* variant that <strong>jumps over symmetric paths</strong> instead of expanding every cell. It identifies "jump points" — nodes where the optimal path must turn — skipping all the straight-line nodes between. Same result as A* but with far fewer expansions on open grids. Watch the sparse visited pattern.`,
+    complexity:'Time: O(E log V) · Space: O(V)'},
+  Beam:{color:'#f5c2e7',type:'Heuristic · Incomplete',
+    how:`Like BFS but at each depth level only the <strong>top-k nodes</strong> (by heuristic) are kept — the rest are discarded. Very memory-efficient and fast, but it can miss the goal entirely if the beam is too narrow. Watch whole swaths of the grid get pruned away.`,
+    complexity:'Time: O(k·d) · Space: O(k)'},
+  IDAStar:{color:'#94e2d5',type:'Informed · Optimal · Low Memory',
+    how:`Iterative deepening DFS with an <strong>f-cost threshold</strong>. Each pass prunes nodes where <em>f = g+h</em> exceeds the threshold. If no path is found the threshold is raised and the grid is re-explored from scratch. Near-O(1) memory at the cost of repeated work.`,
+    complexity:'Time: O(b^d) per iter · Space: O(d)'},
+  DStarLite:{color:'#f38ba8',type:'Informed · Dynamic Replanning',
+    how:`Runs a backward A* from goal to start. When you <strong>draw new walls while it runs</strong>, it detects the changed edges and <strong>repairs only the affected portion</strong> of the search graph — far cheaper than restarting. The pink flash shows cells being replanned.`,
+    complexity:'Time: O(E log V) per replan · Space: O(V)'},
+  RRTStar:{color:'#89dceb',type:'Probabilistic · Asymptotically Optimal',
+    how:`Grows a <strong>tree in continuous pixel space</strong> via random samples. The <em>star</em> variant rewires nearby nodes through the new node if that lowers their cost, gradually optimising the path. Used in robot motion planning where the configuration space is continuous.`,
+    complexity:'Time: O(n log n) · Space: O(n)'},
+};
+
+// ── Canvas / grid ─────────────────────────────────────────────────────────
+const cv=document.getElementById('c');
+cv.width=W;cv.height=H;
+const ctx=cv.getContext('2d');
+let grid=[],running=false,animId=null,drawMode=null;
+const START=[1,1],END=[ROWS-2,COLS-2];
+let visitedCount=0,dstarActive=false,dstarState=null;
+
+function initGrid(seed){
+  let s=seed;
+  const rand=()=>{s=(1664525*s+1013904223)>>>0;return s/4294967296;};
+  grid=Array.from({length:ROWS},(_,r)=>Array.from({length:COLS},(_,c)=>{
+    if(r===START[0]&&c===START[1])return 0;
+    if(r===END[0]&&c===END[1])return 0;
+    return rand()<WALL_PROB?1:0;
+  }));
+}
+const key=(r,c)=>r*COLS+c;
+const heur=(r,c)=>Math.abs(r-END[0])+Math.abs(c-END[1]);
+const heurTo=(r,c,tr,tc)=>Math.abs(r-tr)+Math.abs(c-tc);
+
+function cellColor(r,c){
+  if(r===START[0]&&c===START[1])return C.start;
+  if(r===END[0]&&c===END[1])return C.end;
+  return grid[r][c]===1?C.wall:C.empty;
+}
+function drawCell(r,c,color){
+  if((r===START[0]&&c===START[1])||(r===END[0]&&c===END[1]))return;
+  ctx.fillStyle=color;ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1);
+}
+function redrawAll(){
+  ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ctx.fillStyle=cellColor(r,c);ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1);}
+}
+function clearSearch(){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c]===0){ctx.fillStyle=C.empty;ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1);}
+  ctx.fillStyle=C.start;ctx.fillRect(START[1]*CELL,START[0]*CELL,CELL-1,CELL-1);
+  ctx.fillStyle=C.end;ctx.fillRect(END[1]*CELL,END[0]*CELL,CELL-1,CELL-1);
+}
+function neighbors(r,c){
+  const out=[];
+  for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]!==1)out.push([nr,nc]);}
+  return out;
+}
+function reconstruct(cf,node){
+  const path=[];let cur=node;
+  while(cur!==null){path.push(cur);cur=cf.get(key(...cur))??null;}
+  return path;
+}
+function drawPath(path){
+  for(const[r,c]of path){if((r===START[0]&&c===START[1])||(r===END[0]&&c===END[1]))continue;ctx.fillStyle=C.path;ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1);}
+}
+
+// ── Info panel ────────────────────────────────────────────────────────────
+function setAlgoPanel(id){
+  const info=ALGO_INFO[id];if(!info)return;
+  const btn=[...document.querySelectorAll('button')].find(b=>b.dataset.algoid===id);
+  document.getElementById('algo-name-display').textContent=btn?btn.textContent:id;
+  document.getElementById('algo-name-display').style.color=info.color;
+  const badge=document.getElementById('algo-type-badge');
+  badge.textContent=info.type;badge.style.background=info.color+'33';badge.style.color=info.color;
+  document.getElementById('algo-how').innerHTML=info.how;
+  document.getElementById('algo-complexity').innerHTML=`<span>Complexity</span> — ${info.complexity}`;
+}
+function setStat(id,val){document.getElementById('stat-'+id).textContent=val;}
+function resetStats(){['steps','path','visited','result'].forEach(k=>setStat(k,'—'));visitedCount=0;}
+const statusEl=document.getElementById('status');
+function setStatus(msg){statusEl.textContent=msg;}
+function finish(found,steps,plen){
+  running=false;dstarActive=false;setBtns(false);
+  document.getElementById('dstar-note').style.display='none';
+  setStat('result',found?'✅':'❌');
+  if(steps!=null)setStat('steps',steps);
+  if(plen!=null)setStat('path',plen);
+  setStat('visited',visitedCount);
+  setStatus(found?`✅ Path found — ${plen} cells, ${steps} steps`:'❌ No path found');
+}
+function startRun(id){
+  stopAnim();clearSearch();resetStats();dstarActive=false;dstarState=null;
+  document.getElementById('dstar-note').style.display='none';
+  running=true;setBtns(true);setAlgoPanel(id);setStatus('Running…');
+}
+function stopAnim(){if(animId){clearTimeout(animId);animId=null;}running=false;}
+function setBtns(d){document.querySelectorAll('button:not(#btn-reset)').forEach(b=>b.disabled=d);}
+function visitCell(r,c,color){visitedCount++;drawCell(r,c,color);setStat('visited',visitedCount);}
+
+// ── Wall interaction ──────────────────────────────────────────────────────
+function rcFromEvent(e){const r=cv.getBoundingClientRect();return[Math.floor((e.clientY-r.top)/CELL),Math.floor((e.clientX-r.left)/CELL)];}
+cv.addEventListener('mousedown',e=>{
+  if(running&&!dstarActive)return;
+  const[r,c]=rcFromEvent(e);
+  if(r<0||r>=ROWS||c<0||c>=COLS)return;
+  if((r===START[0]&&c===START[1])||(r===END[0]&&c===END[1]))return;
+  drawMode=grid[r][c]===1?'erase':'wall';
+  toggleWall(r,c);
+});
+cv.addEventListener('mousemove',e=>{
+  if(!drawMode||(running&&!dstarActive))return;
+  const[r,c]=rcFromEvent(e);
+  if(r<0||r>=ROWS||c<0||c>=COLS)return;
+  if((r===START[0]&&c===START[1])||(r===END[0]&&c===END[1]))return;
+  if(drawMode==='wall'&&grid[r][c]!==1)toggleWall(r,c);
+  if(drawMode==='erase'&&grid[r][c]===1)toggleWall(r,c);
+});
+window.addEventListener('mouseup',()=>drawMode=null);
+
+function toggleWall(r,c){
+  grid[r][c]=grid[r][c]===1?0:1;
+  ctx.fillStyle=cellColor(r,c);ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1);
+  if(dstarActive&&dstarState)dstarReplan(r,c);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function reset(){
+  stopAnim();setBtns(false);resetStats();dstarActive=false;dstarState=null;
+  document.getElementById('dstar-note').style.display='none';
+  initGrid(Math.floor(Math.random()*99999));redrawAll();setStatus('Ready');
+  document.getElementById('algo-name-display').textContent='—';
+  document.getElementById('algo-name-display').style.color='#585b70';
+  document.getElementById('algo-type-badge').textContent='none selected';
+  document.getElementById('algo-type-badge').style.background='#313244';
+  document.getElementById('algo-type-badge').style.color='#cdd6f4';
+  document.getElementById('algo-how').innerHTML='<span style="color:#585b70;font-style:italic">Select an algorithm to see how it works.</span>';
+  document.getElementById('algo-complexity').innerHTML='';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. DFS
+// ═══════════════════════════════════════════════════════════════════════════
+function runDFS(){
+  startRun('DFS');
+  const stack=[START],visited=new Set(),cf=new Map();
+  cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    while(stack.length){
+      const node=stack.pop(),k=key(...node);
+      if(visited.has(k))continue;
+      visited.add(k);steps++;visitCell(...node,C.visited);
+      if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+      for(const nb of neighbors(...node)){const nk=key(...nb);if(!visited.has(nk)){cf.has(nk)||cf.set(nk,node);stack.push(nb);drawCell(...nb,C.frontier);}}
+      animId=setTimeout(step,DELAY);return;
+    }
+    finish(false,steps);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. BFS
+// ═══════════════════════════════════════════════════════════════════════════
+function runBFS(){
+  startRun('BFS');
+  const queue=[START],cf=new Map();cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!queue.length){finish(false,steps);return;}
+    const node=queue.shift();steps++;visitCell(...node,C.visited);
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const nk=key(...nb);if(!cf.has(nk)){cf.set(nk,node);queue.push(nb);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. Bidirectional BFS
+// ═══════════════════════════════════════════════════════════════════════════
+function runBiDirBFS(){
+  startRun('BiDirBFS');
+  const fq=[START],bq=[END],fcf=new Map(),bcf=new Map();
+  fcf.set(key(...START),null);bcf.set(key(...END),null);let steps=0;
+  function expand(queue,cf,other,myCol,frontCol){
+    if(!queue.length)return null;
+    const node=queue.shift();visitCell(...node,myCol);
+    if(other.has(key(...node)))return node;
+    for(const nb of neighbors(...node)){const nk=key(...nb);if(!cf.has(nk)){cf.set(nk,node);queue.push(nb);drawCell(...nb,frontCol);}}
+    return null;
+  }
+  function step(){
+    if(!running)return;
+    if(!fq.length&&!bq.length){finish(false,steps);return;}
+    steps++;
+    let meet=expand(fq,fcf,bcf,C.visited,C.frontier);
+    if(meet){stitch(meet);return;}
+    meet=expand(bq,bcf,fcf,C.visited2,C.frontier2);
+    if(meet){stitch(meet);return;}
+    animId=setTimeout(step,DELAY);
+  }
+  function stitch(meet){
+    const p1=reconstruct(fcf,meet),p2=reconstruct(bcf,meet);
+    const full=[...p1.reverse(),...p2.slice(1)];drawPath(full);finish(true,steps,full.length);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. Branch & Bound
+// ═══════════════════════════════════════════════════════════════════════════
+function runBnB(){
+  startRun('BnB');
+  const heap=[[0,START]],cost=new Map(),cf=new Map();
+  cost.set(key(...START),0);cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!heap.length){finish(false,steps);return;}
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[g,node]=heap.shift(),k=key(...node);
+    if(g>(cost.get(k)??Infinity)){animId=setTimeout(step,1);return;}
+    steps++;visitCell(...node,C.visited);
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const ng=g+1,nk=key(...nb);if(ng<(cost.get(nk)??Infinity)){cost.set(nk,ng);cf.set(nk,node);heap.push([ng,nb]);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. Dijkstra
+// ═══════════════════════════════════════════════════════════════════════════
+function runDijkstra(){
+  startRun('Dijkstra');
+  const heap=[[0,START]],dist=new Map(),cf=new Map();
+  dist.set(key(...START),0);cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!heap.length){finish(false,steps);return;}
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[d,node]=heap.shift(),k=key(...node);
+    if(d>(dist.get(k)??Infinity)){animId=setTimeout(step,1);return;}
+    steps++;visitCell(...node,'#f9e2af');
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const nd=d+1,nk=key(...nb);if(nd<(dist.get(nk)??Infinity)){dist.set(nk,nd);cf.set(nk,node);heap.push([nd,nb]);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. A*
+// ═══════════════════════════════════════════════════════════════════════════
+function runAStar(){
+  startRun('AStar');
+  const heap=[[heur(...START),0,START]],gCost=new Map(),cf=new Map();
+  gCost.set(key(...START),0);cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!heap.length){finish(false,steps);return;}
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[,g,node]=heap.shift(),k=key(...node);
+    if(g>(gCost.get(k)??Infinity)){animId=setTimeout(step,1);return;}
+    steps++;visitCell(...node,C.visited);
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const ng=g+1,nk=key(...nb);if(ng<(gCost.get(nk)??Infinity)){gCost.set(nk,ng);cf.set(nk,node);heap.push([ng+heur(...nb),ng,nb]);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. Bidirectional A*
+// ═══════════════════════════════════════════════════════════════════════════
+function runBiDirAStar(){
+  startRun('BiDirAStar');
+  const fHeap=[[heur(...START),0,START]],bHeap=[[heurTo(...END,...START),0,END]];
+  const fG=new Map(),bG=new Map(),fCF=new Map(),bCF=new Map();
+  fG.set(key(...START),0);bG.set(key(...END),0);
+  fCF.set(key(...START),null);bCF.set(key(...END),null);
+  let steps=0,best=Infinity,meetNode=null;
+  function expandOne(heap,gMap,cf,otherG,myCol,hrFn){
+    if(!heap.length)return;
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[,g,node]=heap.shift(),k=key(...node);
+    if(g>(gMap.get(k)??Infinity))return;
+    visitCell(...node,myCol);
+    const tot=g+(otherG.get(k)??Infinity);
+    if(tot<best){best=tot;meetNode=node;}
+    for(const nb of neighbors(...node)){
+      const ng=g+1,nk=key(...nb);
+      if(ng<(gMap.get(nk)??Infinity)){
+        gMap.set(nk,ng);cf.set(nk,node);
+        heap.push([ng+hrFn(...nb),ng,nb]);drawCell(...nb,C.frontier);
+      }
+    }
+  }
+  function step(){
+    if(!running)return;
+    if(!fHeap.length&&!bHeap.length){
+      if(meetNode){stitch();}else finish(false,steps);return;
+    }
+    steps++;
+    expandOne(fHeap,fG,fCF,bG,C.visited,(r,c)=>heurTo(r,c,...END));
+    expandOne(bHeap,bG,bCF,fG,C.visited2,(r,c)=>heurTo(r,c,...START));
+    // termination: if top of both heaps exceed best
+    const fTop=fHeap.length?fHeap[0][0]:Infinity;
+    const bTop=bHeap.length?bHeap[0][0]:Infinity;
+    if(fTop+bTop>=best&&meetNode){stitch();return;}
+    animId=setTimeout(step,DELAY);
+  }
+  function stitch(){
+    const p1=reconstruct(fCF,meetNode),p2=reconstruct(bCF,meetNode);
+    const full=[...p1.reverse(),...p2.slice(1)];drawPath(full);finish(true,steps,full.length);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. Greedy BFS
+// ═══════════════════════════════════════════════════════════════════════════
+function runGreedy(){
+  startRun('Greedy');
+  const heap=[[heur(...START),START]],visited=new Set(),cf=new Map();
+  cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!heap.length){finish(false,steps);return;}
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[,node]=heap.shift(),k=key(...node);
+    if(visited.has(k)){animId=setTimeout(step,1);return;}
+    visited.add(k);steps++;visitCell(...node,C.visited);
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const nk=key(...nb);if(!visited.has(nk)){cf.has(nk)||cf.set(nk,node);heap.push([heur(...nb),nb]);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 9. Weighted A*
+// ═══════════════════════════════════════════════════════════════════════════
+function runWeightedAStar(){
+  startRun('WeightedAStar');
+  const eps=parseFloat(document.getElementById('wa-weight').value);
+  const heap=[[eps*heur(...START),0,START]],gCost=new Map(),cf=new Map();
+  gCost.set(key(...START),0);cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!heap.length){finish(false,steps);return;}
+    heap.sort((a,b)=>a[0]-b[0]);
+    const[,g,node]=heap.shift(),k=key(...node);
+    if(g>(gCost.get(k)??Infinity)){animId=setTimeout(step,1);return;}
+    steps++;visitCell(...node,'#fab387');
+    if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+    for(const nb of neighbors(...node)){const ng=g+1,nk=key(...nb);if(ng<(gCost.get(nk)??Infinity)){gCost.set(nk,ng);cf.set(nk,node);heap.push([ng+eps*heur(...nb),ng,nb]);drawCell(...nb,C.frontier);}}
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10. Jump Point Search (JPS) — 4-directional uniform grid
+// ═══════════════════════════════════════════════════════════════════════════
+function runJPS(){
+  startRun('JPS');
+  // open list: [f, g, node, direction]  direction=null means start
+  const open=[[heur(...START),0,START,null]];
+  const gCost=new Map(),cf=new Map();
+  gCost.set(key(...START),0);cf.set(key(...START),null);
+  let steps=0;
+  const DIRS=[[-1,0],[1,0],[0,-1],[0,1]];
+
+  function blocked(r,c){return r<0||r>=ROWS||c<0||c>=COLS||grid[r][c]===1;}
+
+  // Jump in direction (dr,dc) from (r,c); return jump point or null
+  function jump(r,c,dr,dc){
+    let cr=r+dr,cc=c+dc;
+    while(true){
+      if(blocked(cr,cc))return null;
+      if(cr===END[0]&&cc===END[1])return[cr,cc];
+      // forced neighbours check (4-directional)
+      if(dr!==0){// vertical
+        if((!blocked(cr,cc+1)&&blocked(cr-dr,cc+1))||(!blocked(cr,cc-1)&&blocked(cr-dr,cc-1)))return[cr,cc];
+      } else {// horizontal
+        if((!blocked(cr+1,cc)&&blocked(cr+1,cc-dc))||(!blocked(cr-1,cc)&&blocked(cr-1,cc-dc)))return[cr,cc];
+      }
+      cr+=dr;cc+=dc;
+    }
+  }
+
+  function successors(node,parent){
+    const[r,c]=node;
+    const succs=[];
+    // natural neighbours based on direction from parent
+    let dirs=DIRS;
+    if(parent){
+      const pr=cf.get(key(...node));
+      if(pr){const[pr2,pc2]=pr,dr=Math.sign(r-pr2),dc=Math.sign(c-pc2);dirs=[[dr||0,dc||0]].filter(([a,b])=>a||b);
+        // add perpendicular dirs always
+        if(dr!==0)dirs.push([0,1],[0,-1]); else dirs.push([1,0],[-1,0]);}
+    }
+    for(const[dr,dc]of dirs){const jp=jump(r,c,dr,dc);if(jp)succs.push(jp);}
+    return succs;
+  }
+
+  function step(){
+    if(!running)return;
+    if(!open.length){finish(false,steps);return;}
+    open.sort((a,b)=>a[0]-b[0]);
+    const[,g,node]=open.shift(),k=key(...node);
+    if(g>(gCost.get(k)??Infinity)){animId=setTimeout(step,1);return;}
+    steps++;visitCell(...node,'#a6e3a1');
+    if(node[0]===END[0]&&node[1]===END[1]){
+      // reconstruct and also fill straight segments
+      const raw=reconstruct(cf,END);
+      // expand segments between jump points
+      const full=[];
+      for(let i=raw.length-1;i>0;i--){
+        const[r0,c0]=raw[i],[r1,c1]=raw[i-1];
+        const dr=Math.sign(r1-r0),dc=Math.sign(c1-c0);
+        let cr=r0,cc=c0;
+        while(cr!==r1||cc!==c1){full.push([cr,cc]);cr+=dr;cc+=dc;}
+      }
+      full.push(END);
+      drawPath(full);finish(true,steps,full.length);return;
+    }
+    for(const nb of successors(node,true)){
+      const ng=g+heurTo(...node,...nb),nk=key(...nb);
+      if(ng<(gCost.get(nk)??Infinity)){
+        gCost.set(nk,ng);cf.set(nk,node);
+        open.push([ng+heur(...nb),ng,nb]);drawCell(...nb,C.frontier);
+      }
+    }
+    animId=setTimeout(step,DELAY);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. Beam Search
+// ═══════════════════════════════════════════════════════════════════════════
+function runBeam(){
+  startRun('Beam');
+  const BEAM_WIDTH=8;
+  let frontier=[START],cf=new Map();
+  cf.set(key(...START),null);let steps=0;
+  function step(){
+    if(!running)return;
+    if(!frontier.length){finish(false,steps);return;}
+    const nextAll=[];
+    for(const node of frontier){
+      steps++;visitCell(...node,C.visited);
+      if(node[0]===END[0]&&node[1]===END[1]){const p=reconstruct(cf,END);drawPath(p);finish(true,steps,p.length);return;}
+      for(const nb of neighbors(...node)){const nk=key(...nb);if(!cf.has(nk)){cf.set(nk,node);nextAll.push(nb);drawCell(...nb,C.frontier);}}
+    }
+    // keep only top-k by heuristic
+    nextAll.sort((a,b)=>heur(...a)-heur(...b));
+    frontier=nextAll.slice(0,BEAM_WIDTH);
+    animId=setTimeout(step,DELAY*2);
+  }
+  step();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 12. IDA*
+// ═══════════════════════════════════════════════════════════════════════════
+function runIDAStar(){
+  startRun('IDAStar');
+  let threshold=heur(...START),steps=0,found=false;
+  function iterate(){
+    if(!running)return;
+    clearSearch();visitedCount=0;setStat('visited',0);
+    const path=[START],pathSet=new Set([key(...START)]);
+    const result=dfs(path,pathSet,0,threshold);
+    if(found)return;
+    if(result===Infinity){finish(false,steps);return;}
+    threshold=result;animId=setTimeout(iterate,DELAY*2);
+  }
+  function dfs(path,pathSet,g,thresh){
+    const node=path[path.length-1],f=g+heur(...node);
+    if(f>thresh)return f;
+    steps++;visitCell(...node,'#94e2d5');
+    if(node[0]===END[0]&&node[1]===END[1]){drawPath([...path].reverse());finish(true,steps,path.length);found=true;return -1;}
+    let min=Infinity;
+    for(const nb of neighbors(...node)){const nk=key(...nb);if(!pathSet.has(nk)){path.push(nb);pathSet.add(nk);drawCell(...nb,C.frontier);const t=dfs(path,pathSet,g+1,thresh);if(found)return -1;if(t<min)min=t;path.pop();pathSet.delete(nk);}}
+    return min;
+  }
+  iterate();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 13. D* Lite  (simplified: runs A* backward, replan on wall change)
+// ═══════════════════════════════════════════════════════════════════════════
+function runDStarLite(){
+  startRun('DStarLite');
+  dstarActive=true;
+  document.getElementById('dstar-note').style.display='block';
+  // D* Lite: backward A* from goal; store rhs and g values
+  const INF=Infinity;
+  const g=new Map(),rhs=new Map();
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){g.set(key(r,c),INF);rhs.set(key(r,c),INF);}
+  rhs.set(key(...END),0);
+  const heap=[[calcKey(...END),END]];
+  let steps=0;
+
+  function calcKey(r,c){
+    const rv=Math.min(g.get(key(r,c)),rhs.get(key(r,c)));
+    return rv+heurTo(r,c,...START);
+  }
+  function updateVertex(r,c){
+    const k=key(r,c);
+    if(r!==END[0]||c!==END[1]){
+      let mn=INF;
+      for(const[nr,nc]of neighbors(r,c))mn=Math.min(mn,(g.get(key(nr,nc))??INF)+1);
+      rhs.set(k,mn);
+    }
+    // remove from heap
+    const idx=heap.findIndex(e=>e[1][0]===r&&e[1][1]===c);
+    if(idx>=0)heap.splice(idx,1);
+    if(g.get(k)!==rhs.get(k))heap.push([calcKey(r,c),[r,c]]);
+  }
+
+  function computePath(){
+    heap.sort((a,b)=>a[0]-b[0]);
+    let iters=0;
+    while(heap.length&&(heap[0][0]<calcKey(...START)||rhs.get(key(...START))!==g.get(key(...START)))){
+      const[,node]=heap.shift();const[r,c]=node,k=key(r,c);
+      steps++;visitCell(r,c,C.visited);
+      if(g.get(k)>rhs.get(k)){
+        g.set(k,rhs.get(k));
+        for(const nb of neighbors(r,c))updateVertex(...nb);
+      } else {
+        g.set(k,INF);updateVertex(r,c);
+        for(const nb of neighbors(r,c))updateVertex(...nb);
+      }
+      heap.sort((a,b)=>a[0]-b[0]);
+      if(++iters>2000)break;
+    }
+  }
+
+  function showPath(){
+    clearSearch();
+    // follow gradient from start to end
+    let cur=START;const path=[cur];let guard=0;
+    while((cur[0]!==END[0]||cur[1]!==END[1])&&guard++<ROWS*COLS){
+      const nbs=neighbors(...cur);
+      if(!nbs.length)break;
+      nbs.sort((a,b)=>(g.get(key(...a))??INF)-(g.get(key(...b))??INF));
+      if((g.get(key(...nbs[0]))??INF)>=INF)break;
+      cur=nbs[0];path.push(cur);
+    }
+    if(cur[0]===END[0]&&cur[1]===END[1]){drawPath(path);setStat('path',path.length);}
+    else setStatus('⚠️ No current path — draw/erase walls to replan');
+    setStat('steps',steps);setStat('visited',visitedCount);setStat('result',cur[0]===END[0]&&cur[1]===END[1]?'✅':'❌');
+  }
+
+  computePath();showPath();
+  setStatus('D* Lite ready — draw walls to trigger replanning!');
+  setBtns(false);// allow wall drawing
+  dstarState={g,rhs,heap,computePath,showPath,steps:()=>steps,addSteps:(n)=>{steps+=n;}};
+}
+
+function dstarReplan(wr,wc){
+  if(!dstarState)return;
+  const{g,rhs,heap,computePath,showPath}=dstarState;
+  // flash replan indicator
+  drawCell(wr,wc,'#f3794488');
+  // update affected vertices
+  function updateVertex(r,c){
+    const k=key(r,c);
+    if(r!==END[0]||c!==END[1]){
+      let mn=Infinity;
+      for(const[nr,nc]of neighbors(r,c))mn=Math.min(mn,(g.get(key(nr,nc))??Infinity)+1);
+      rhs.set(k,mn);
+    }
+    const idx=heap.findIndex(e=>e[1][0]===r&&e[1][1]===c);
+    if(idx>=0)heap.splice(idx,1);
+    function calcKey2(r2,c2){const rv=Math.min(g.get(key(r2,c2)),rhs.get(key(r2,c2)));return rv+heurTo(r2,c2,...START);}
+    if(g.get(k)!==rhs.get(k))heap.push([calcKey2(r,c),[r,c]]);
+  }
+  updateVertex(wr,wc);
+  for(const[nr,nc]of[[-1,0],[1,0],[0,-1],[0,1]]){const r=wr+nr,c=wc+nc;if(r>=0&&r<ROWS&&c>=0&&c<COLS)updateVertex(r,c);}
+  computePath();showPath();
+  setTimeout(()=>{if(grid[wr][wc]===0)drawCell(wr,wc,C.empty);},300);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 14. RRT*
+// ═══════════════════════════════════════════════════════════════════════════
+function runRRTStar(){
+  startRun('RRTStar');
+  const toPx=(r,c)=>[c*CELL+CELL/2,r*CELL+CELL/2];
+  const[sx,sy]=toPx(...START),[ex,ey]=toPx(...END);
+  const STEP=CELL*1.9,RADIUS=CELL*3.8,MAX=3500,BIAS=0.08;
+  const nodes=[[sx,sy]],parent=new Map(),cost=new Map();
+  parent.set(0,null);cost.set(0,0);
+  let itr=0,found=false;
+  function wallAt(px,py){const r=Math.floor(py/CELL),c=Math.floor(px/CELL);return!(r>=0&&r<ROWS&&c>=0&&c<COLS)||grid[r][c]===1;}
+  // Proper grid-traversal collision: visits every cell the segment passes through
+  function segFree(x0,y0,x1,y1){
+    // which cell each endpoint is in
+    let c0=Math.floor(x0/CELL),r0=Math.floor(y0/CELL);
+    const c1=Math.floor(x1/CELL),r1=Math.floor(y1/CELL);
+    const dc=Math.sign(c1-c0),dr=Math.sign(r1-r0);
+    if(wallAt(x0,y0)||wallAt(x1,y1))return false;
+    if(c0===c1&&r0===r1)return true;
+    // tMax: parameter t at which we first cross a vertical/horizontal grid line
+    const dx=x1-x0,dy=y1-y0;
+    const tDeltaX=dx===0?Infinity:Math.abs(CELL/dx);
+    const tDeltaY=dy===0?Infinity:Math.abs(CELL/dy);
+    // distance to first crossing
+    let tMaxX=dx===0?Infinity:Math.abs(((dc>0?(c0+1)*CELL:c0*CELL)-x0)/dx);
+    let tMaxY=dy===0?Infinity:Math.abs(((dr>0?(r0+1)*CELL:r0*CELL)-y0)/dy);
+    for(let i=0;i<(COLS+ROWS)*2;i++){
+      if(tMaxX<tMaxY){c0+=dc;tMaxX+=tDeltaX;}
+      else            {r0+=dr;tMaxY+=tDeltaY;}
+      if(r0<0||r0>=ROWS||c0<0||c0>=COLS)return false;
+      if(grid[r0][c0]===1)return false;
+      if(c0===c1&&r0===r1)return true;
+    }
+    return true;
+  }
+  function d2(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1]);}
+  function step(){
+    if(!running)return;
+    if(itr>=MAX){finish(false);return;}
+    const[rx,ry]=Math.random()<BIAS?[ex,ey]:[Math.random()*W,Math.random()*H];
+    let ni=0,nd=Infinity;
+    nodes.forEach(([nx,ny],i)=>{const d=Math.hypot(nx-rx,ny-ry);if(d<nd){nd=d;ni=i;}});
+    const[nx,ny]=nodes[ni],L=Math.hypot(rx-nx,ry-ny);
+    if(L<1){itr++;animId=setTimeout(step,1);return;}
+    const ratio=Math.min(STEP/L,1);
+    const newx=nx+(rx-nx)*ratio,newy=ny+(ry-ny)*ratio;
+    if(!segFree(nx,ny,newx,newy)){itr++;animId=setTimeout(step,1);return;}
+    const near=[];nodes.forEach(([ox,oy],i)=>{if(d2([ox,oy],[newx,newy])<RADIUS&&segFree(ox,oy,newx,newy))near.push(i);});
+    let bp=ni,bc=cost.get(ni)+d2(nodes[ni],[newx,newy]);
+    near.forEach(i=>{const c=cost.get(i)+d2(nodes[i],[newx,newy]);if(c<bc&&segFree(...nodes[i],newx,newy)){bc=c;bp=i;}});
+    const newIdx=nodes.length;
+    nodes.push([newx,newy]);parent.set(newIdx,bp);cost.set(newIdx,bc);
+    visitedCount++;setStat('visited',visitedCount);
+    ctx.strokeStyle=C.rrtEdge;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(...nodes[bp]);ctx.lineTo(newx,newy);ctx.stroke();
+    ctx.fillStyle=C.rrtNode;ctx.beginPath();ctx.arc(newx,newy,2.5,0,Math.PI*2);ctx.fill();
+    near.forEach(i=>{
+      if(i===bp)return;
+      const nc=bc+d2([newx,newy],nodes[i]);
+      if(nc<cost.get(i)&&segFree(newx,newy,...nodes[i])){
+        const[ox,oy]=nodes[parent.get(i)];
+        ctx.strokeStyle=C.empty;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(...nodes[i]);ctx.stroke();
+        ctx.strokeStyle=C.rrtEdge;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(newx,newy);ctx.lineTo(...nodes[i]);ctx.stroke();
+        parent.set(i,newIdx);cost.set(i,nc);
+      }
+    });
+    if(!found&&d2([newx,newy],[ex,ey])<STEP&&segFree(newx,newy,ex,ey)){
+      found=true;
+      const pts=[];let cur=newIdx;while(cur!==null){pts.push(nodes[cur]);cur=parent.get(cur);}pts.reverse();
+      ctx.strokeStyle=C.path;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(...pts[0]);pts.forEach(p=>ctx.lineTo(...p));ctx.stroke();
+      finish(true,itr,pts.length);return;
+    }
+    itr++;animId=setTimeout(step,Math.max(1,DELAY/4));
+  }
+  step();
+}
+
+// ── Bottom description panel ──────────────────────────────────────────────
+const DESC={
+  DFS:{name:'Depth-First Search',badge:'Uninformed · Stack',color:'#cba6f7',time:'O(V+E)',space:'O(V)',optimal:'❌ No',
+    how:'Pushes neighbours onto a <strong>LIFO stack</strong>. Always expands the most recently discovered node first, plunging deep into one corridor before backtracking to try others. The search "commits" to a direction until it hits a dead end.',
+    watch:'Notice how the visited region is a long tendril rather than a ring. It often reaches one side of the maze very quickly then doubles back. The final path is rarely efficient.',
+    tradeoffs:'<strong>✅ Very low overhead</strong> — no priority queue needed.<br><strong>✅ Finds a path fast</strong> if the goal is in the deep branch it picks first.<br><strong>❌ Path is not optimal</strong> — often significantly longer than shortest.<br><strong>❌ Can get lost</strong> in large open areas.'},
+  BFS:{name:'Breadth-First Search',badge:'Uninformed · Queue',color:'#74c7ec',time:'O(V+E)',space:'O(V)',optimal:'✅ Yes (unit cost)',
+    how:'Adds neighbours to a <strong>FIFO queue</strong>. Processes every node at depth <em>d</em> before moving to depth <em>d+1</em>. The frontier expands as a perfect wavefront radiating outward from the start.',
+    watch:'The visited region grows as a near-circular ring. Every cell is reached in the fewest possible steps — the moment the ring touches the goal, you have the shortest path. Compare how much of the grid it must flood vs A*.',
+    tradeoffs:'<strong>✅ Guaranteed shortest path</strong> on unweighted graphs.<br><strong>✅ Simple and reliable</strong> — no heuristic needed.<br><strong>❌ Explores in all directions equally</strong> — wastes effort on cells far from goal.<br><strong>❌ High memory</strong> — entire frontier stored.'},
+  BiDirBFS:{name:'Bidirectional BFS',badge:'Uninformed · Two Queues',color:'#89b4fa',time:'O(b^(d/2))',space:'O(b^(d/2))',optimal:'✅ Yes (unit cost)',
+    how:'Runs <strong>two simultaneous BFS</strong> instances — one forward from Start (blue), one backward from Goal (purple). Each expands one node per round. When a node appears in both visited sets, the two halves are stitched into the full path.',
+    watch:'Two distinct coloured rings grow toward each other. The collision point is roughly in the middle of the maze. Compare the total coloured area to a single BFS run — it\'s dramatically smaller.',
+    tradeoffs:'<strong>✅ Explores ~half the nodes</strong> of standard BFS.<br><strong>✅ Still optimal</strong> on unit-cost grids.<br><strong>❌ More complex</strong> to implement correctly — termination condition is subtle.<br><strong>❌ Requires bidirectional edge access</strong> (easy on grids, harder on digraphs).'},
+  BnB:{name:'Branch & Bound',badge:'Informed · Min-Heap',color:'#fab387',time:'O(E log V)',space:'O(V)',optimal:'✅ Yes',
+    how:'Maintains a <strong>min-heap ordered by cumulative cost g</strong>. When a complete solution is found its cost becomes an upper bound. Any partial path whose current cost already exceeds that bound is <strong>pruned</strong> — entire branches of the search tree are discarded without exploring them.',
+    watch:'On this uniform-cost grid it looks like BFS, but the pruning principle becomes dramatic on weighted graphs. Imagine edges with varied costs — B&B would skip huge subtrees the moment their cost exceeds the best known path.',
+    tradeoffs:'<strong>✅ Optimal</strong> — always finds minimum-cost path.<br><strong>✅ Scales to weighted graphs</strong> unlike BFS.<br><strong>✅ Pruning can be dramatic</strong> with a good upper bound.<br><strong>❌ Without a heuristic</strong> it explores uniformly like Dijkstra.<br><strong>❌ Worst case</strong> still exponential without good bounds.'},
+  Dijkstra:{name:"Dijkstra's Algorithm",badge:'Informed · Priority Queue',color:'#f9e2af',time:'O(E log V)',space:'O(V)',optimal:'✅ Yes',
+    how:'Each node tracks a <strong>tentative shortest distance</strong> from start, initialised to infinity. A priority queue always pops the node with the current smallest distance. When popped, its distance is finalised and neighbours are <strong>relaxed</strong> — updated if a shorter route through this node exists.',
+    watch:'The gold-coloured expansion fans out uniformly in all directions like BFS but driven by cost. On this unit-cost grid it mirrors BFS exactly. On weighted graphs (imagine thicker/thinner walls = cost) it would curve toward cheaper paths.',
+    tradeoffs:'<strong>✅ Optimal</strong> on any non-negative weighted graph.<br><strong>✅ The foundation</strong> for A*, B&B, D* and many others.<br><strong>❌ No sense of direction</strong> — explores equally in all directions.<br><strong>❌ Slower than A*</strong> when a good heuristic exists.'},
+  AStar:{name:'A* Search',badge:'Informed · Heuristic',color:'#a6e3a1',time:'O(E log V)',space:'O(V)',optimal:'✅ Yes (admissible h)',
+    how:'Combines Dijkstra\'s cost-tracking with a <strong>heuristic estimate h</strong> (Manhattan distance here). The priority key is <em>f = g + h</em> where g is steps taken and h estimates steps remaining. This steers expansion toward the goal without sacrificing optimality, provided h never overestimates.',
+    watch:'Compare the visited footprint to BFS or Dijkstra — A* leaves a far smaller "shadow" behind it, concentrating effort in a cone toward the goal. On open terrain it looks almost like a laser beam.',
+    tradeoffs:'<strong>✅ Optimal and complete</strong> with admissible heuristic.<br><strong>✅ Far fewer nodes visited</strong> than BFS or Dijkstra.<br><strong>✅ Industry standard</strong> for grid pathfinding (games, robotics, GPS).<br><strong>❌ Memory can still be O(V)</strong> in worst case.<br><strong>❌ Heuristic quality matters</strong> — a bad h degrades to Dijkstra.'},
+  BiDirAStar:{name:'Bidirectional A*',badge:'Informed · Dual Heuristic',color:'#94e2d5',time:'O(E log V)',space:'O(V)',optimal:'✅ Yes',
+    how:'Two A* searches run simultaneously. The forward search uses h = Manhattan to Goal; the backward search uses h = Manhattan to Start. Each uses the <strong>other search\'s visited set</strong> to detect when the frontiers overlap. The meeting node with lowest combined g-cost forms the path.',
+    watch:'Two focused "beams" grow toward each other — each narrower than a single A* because both heuristics are pointing inward. The junction is usually near the geometric midpoint of the optimal path.',
+    tradeoffs:'<strong>✅ Typically 2× faster than single A*</strong> on large grids.<br><strong>✅ Both searches focused</strong> — less wasted exploration.<br><strong>❌ Termination condition</strong> is more complex than Bidir-BFS.<br><strong>❌ Optimality proof</strong> requires careful implementation of the stopping criterion.'},
+  Greedy:{name:'Greedy Best-First Search',badge:'Heuristic Only · Not Optimal',color:'#f38ba8',time:'O(E log V)',space:'O(V)',optimal:'❌ No',
+    how:'Uses <strong>only the heuristic h</strong> as the priority — completely ignoring g, the cost of the path so far. Always expands whichever open node appears closest to the goal by heuristic. It never looks back, only forward.',
+    watch:'On open grids it races directly to the goal in an almost straight line — faster than any other algorithm. But watch what happens near walls: it can commit to a dead-end corridor, backtrack, then dart off in another suboptimal direction.',
+    tradeoffs:'<strong>✅ Extremely fast</strong> on open, obstacle-free grids.<br><strong>✅ Minimal computation</strong> — no g tracking needed.<br><strong>❌ Not optimal</strong> — often finds paths significantly longer than shortest.<br><strong>❌ Not complete</strong> in some graph types — can loop.<br><strong>❌ Easily fooled</strong> by local minima in the heuristic.'},
+  WeightedAStar:{name:'Weighted A* (WA*)',badge:'Informed · Tunable',color:'#fab387',time:'O(E log V)',space:'O(V)',optimal:'≤ ε× optimal',
+    how:'Standard A* with <em>f = g + <strong>ε · h</strong></em>. When ε = 1 it is identical to A*. Increasing ε inflates the heuristic, making the algorithm more greedy — it races toward the goal faster but may overshoot the optimal path cost by up to a factor of ε. Use the <strong>slider below</strong> to tune live.',
+    watch:'At ε = 1 the visited pattern matches A*. Crank ε toward 5 and watch it become almost as focused as Greedy — dramatically fewer cells visited but a potentially longer path. The visited count in the stats panel shows the tradeoff clearly.',
+    tradeoffs:'<strong>✅ ε-bounded suboptimality</strong> — you know the worst case.<br><strong>✅ Much faster than A*</strong> at high ε values.<br><strong>✅ Tunable</strong> — can trade path quality for speed interactively.<br><strong>❌ Path may be up to ε× longer</strong> than optimal.<br><strong>❌ Choosing ε</strong> requires domain knowledge.'},
+  JPS:{name:'Jump Point Search',badge:'Informed · Symmetry Breaking',color:'#a6e3a1',time:'O(E log V)',space:'O(V)',optimal:'✅ Yes (uniform grid)',
+    how:'An A* optimisation that exploits the <strong>symmetry of uniform grids</strong>. Instead of expanding every cell, it "jumps" along straight lines until it hits a <strong>jump point</strong> — a cell where the optimal path is forced to turn (due to a nearby wall). Only jump points enter the open list.',
+    watch:'Unlike A*, which lights up a dense cone of cells, JPS visits a sparse scatter of jump points connected by long straight lines. The final path is identical to A* but far fewer cells are ever evaluated. Notice the open list stays tiny.',
+    tradeoffs:'<strong>✅ Same optimal result as A*</strong> — zero quality sacrifice.<br><strong>✅ Dramatically fewer node expansions</strong> on open grids (often 10–50× fewer).<br><strong>✅ Used in game engines</strong> for its speed on tile maps.<br><strong>❌ Only works on uniform-cost grids</strong> — not general weighted graphs.<br><strong>❌ More complex to implement</strong> correctly for diagonal movement.'},
+  Beam:{name:'Beam Search',badge:'Heuristic · Incomplete',color:'#f5c2e7',time:'O(k·d)',space:'O(k)',optimal:'❌ No',
+    how:'BFS but at each depth level only the <strong>best k nodes by heuristic</strong> are kept — all others are permanently discarded. Here k = 8. The "beam" of k candidates moves down the tree level by level, ignoring anything outside the beam width.',
+    watch:'Large swaths of the frontier simply disappear each round — you can see the aggressive pruning as coloured cells never expand. On cluttered mazes the beam often fails entirely because the true path was in a discarded branch.',
+    tradeoffs:'<strong>✅ Extremely memory efficient</strong> — only O(k) nodes stored.<br><strong>✅ Very fast</strong> when the heuristic is good and the grid is open.<br><strong>❌ Incomplete</strong> — can fail to find a path even if one exists.<br><strong>❌ No optimality guarantee</strong> whatsoever.<br><strong>❌ Sensitive to k</strong> — too small fails, too large ≈ BFS.'},
+  IDAStar:{name:'IDA* (Iterative Deepening A*)',badge:'Memory-Bounded · Optimal',color:'#94e2d5',time:'O(b^d) per iteration',space:'O(d)',optimal:'✅ Yes',
+    how:'Performs <strong>DFS with an f-cost cutoff threshold</strong>. Any node where f = g + h exceeds the threshold is pruned. If the goal is not found, the threshold is raised to the smallest f-value that was pruned and the entire search restarts from scratch.',
+    watch:'Notice the grid clears and re-fills on each iteration — IDA* re-explores nodes it has already visited. This repeated work is the price of using only O(depth) memory. The threshold value climbs each pass until the goal is reachable.',
+    tradeoffs:'<strong>✅ Near O(1) memory</strong> — only the current path stack is stored.<br><strong>✅ Optimal</strong> with admissible heuristic, like A*.<br><strong>✅ Used in memory-constrained systems</strong> (embedded, puzzle solvers).<br><strong>❌ Repeated re-expansion</strong> of nodes is wasteful on dense graphs.<br><strong>❌ Slower than A*</strong> in practice due to redundant work.'},
+  DStarLite:{name:'D* Lite',badge:'Dynamic Replanning · Optimal',color:'#f38ba8',time:'O(E log V) per replan',space:'O(V)',optimal:'✅ Yes',
+    how:'Runs a <strong>backward A* from Goal to Start</strong>, storing g-values for each cell. When a wall is added or removed, only the cells whose shortest-path costs are actually affected are re-queued and recomputed — the rest of the search graph stays valid. Much cheaper than a full restart.',
+    watch:'After the initial solve, <strong>draw new walls</strong> on the grid. A pink flash shows the cells being re-evaluated. The path updates almost instantly because D* Lite patches only the broken region rather than redoing the whole search.',
+    tradeoffs:'<strong>✅ Handles dynamic environments</strong> — walls can change mid-navigation.<br><strong>✅ Repairs only affected regions</strong> — much cheaper than restarting.<br><strong>✅ Used in robotics</strong> where sensors discover obstacles during movement.<br><strong>❌ More complex state</strong> to maintain (g, rhs, key values per node).<br><strong>❌ Worst case still O(V)</strong> if the entire graph changes.'},
+  RRTStar:{name:'RRT* (Optimal RRT)',badge:'Probabilistic · Sampling',color:'#89dceb',time:'O(n log n)',space:'O(n)',optimal:'✅ Asymptotically',
+    how:'Samples random points in <strong>continuous pixel space</strong>, steers toward the nearest tree node, and connects if the segment is wall-free. The <em>star</em> improvement then checks nearby nodes: if routing them through the new node is cheaper, their parent pointer is updated — <strong>rewiring</strong> gradually optimises the tree.',
+    watch:'Unlike grid algorithms, RRT* grows an organic branching tree across the entire canvas. Watch edges get redrawn as rewiring finds shorter routes. The final highlighted path may change direction many times — it is a continuous-space route, not a grid path.',
+    tradeoffs:'<strong>✅ Works in continuous space</strong> — no grid discretisation needed.<br><strong>✅ Asymptotically optimal</strong> — path improves indefinitely with more samples.<br><strong>✅ Used in robot motion planning</strong>, self-driving cars, drone navigation.<br><strong>❌ Slow to converge</strong> — many samples needed for a clean path.<br><strong>❌ Non-deterministic</strong> — result varies each run.'},
+};
+
+function showDescPanel(id){
+  const d=DESC[id]; if(!d) return;
+  const panel=document.getElementById('algo-desc-panel');
+  panel.style.display='block';
+  panel.style.borderColor=d.color+'66';
+  document.getElementById('desc-name').textContent=d.name;
+  document.getElementById('desc-name').style.color=d.color;
+  const badge=document.getElementById('desc-badge');
+  badge.textContent=d.badge; badge.style.background=d.color+'28'; badge.style.color=d.color;
+  document.getElementById('desc-time').textContent=d.time;
+  document.getElementById('desc-space').textContent=d.space;
+  document.getElementById('desc-optimal').textContent=d.optimal;
+  document.getElementById('desc-optimal').style.color=d.optimal.startsWith('✅')?'#a6e3a1':d.optimal.startsWith('❌')?'#f38ba8':'#fab387';
+  document.getElementById('desc-how').innerHTML=d.how;
+  document.getElementById('desc-watch').innerHTML=d.watch;
+  document.getElementById('desc-tradeoffs').innerHTML=d.tradeoffs;
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── Weighted A* slider ────────────────────────────────────────────────────
+const waSlider=document.getElementById('wa-weight'),waVal=document.getElementById('wa-val');
+waSlider.addEventListener('input',()=>waVal.textContent=parseFloat(waSlider.value).toFixed(1));
+
+// ── Button definitions ────────────────────────────────────────────────────
+const BTNS=[
+  {row:'uninformed', label:'DFS',               id:'DFS',         color:'#cba6f7', fn:runDFS},
+  {row:'uninformed', label:'BFS',               id:'BFS',         color:'#74c7ec', fn:runBFS},
+  {row:'uninformed', label:'Bidirectional BFS', id:'BiDirBFS',    color:'#89b4fa', fn:runBiDirBFS},
+  {row:'informed',   label:'Branch & Bound',    id:'BnB',         color:'#fab387', fn:runBnB},
+  {row:'informed',   label:'Dijkstra',          id:'Dijkstra',    color:'#f9e2af', fn:runDijkstra},
+  {row:'informed',   label:'A*',                id:'AStar',       color:'#a6e3a1', fn:runAStar},
+  {row:'informed',   label:'Bidirectional A*',  id:'BiDirAStar',  color:'#94e2d5', fn:runBiDirAStar},
+  {row:'informed',   label:'Greedy BFS',        id:'Greedy',      color:'#f38ba8', fn:runGreedy},
+  {row:'informed',   label:'Weighted A*',       id:'WeightedAStar',color:'#fab387',fn:runWeightedAStar},
+  {row:'informed',   label:'Jump Point Search', id:'JPS',         color:'#a6e3a1', fn:runJPS},
+  {row:'informed',   label:'Beam Search (k=8)', id:'Beam',        color:'#f5c2e7', fn:runBeam},
+  {row:'memory',     label:'IDA*',              id:'IDAStar',     color:'#94e2d5', fn:runIDAStar},
+  {row:'memory',     label:'D* Lite (dynamic)', id:'DStarLite',   color:'#f38ba8', fn:runDStarLite},
+  {row:'prob',       label:'RRT*',              id:'RRTStar',     color:'#89dceb', fn:runRRTStar},
+];
+
+const rowMap={uninformed:'row-uninformed',informed:'row-informed',memory:'row-memory',prob:'row-prob'};
+BTNS.forEach(({row,label,id,color,fn})=>{
+  const b=document.createElement('button');
+  b.textContent=label;b.style.color=color;b.dataset.algoid=id;
+  b.addEventListener('click',()=>{ fn(); showDescPanel(id); });
+  document.getElementById(rowMap[row]).appendChild(b);
+});
+document.getElementById('btn-reset').addEventListener('click',reset);
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+initGrid(42);redrawAll();
+</script>
+</body>
+</html>
